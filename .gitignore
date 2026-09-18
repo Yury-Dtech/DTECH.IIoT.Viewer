@@ -1,0 +1,23 @@
+# Wyniki kompilacji
+[Bb]in/
+[Oo]bj/
+
+# Pliki i ustawienia Visual Studio / Rider / VS Code
+.vs/
+.idea/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.csproj.user
+
+# Logi, pliki tymczasowe
+*.log
+*.tmp
+*.cache
+
+# Dane wrazliwe: nigdy nie commitujemy hasel ani realnych connection stringow
+appsettings.Local.json
+secrets.json
+telerik-license.txt

@@ -1,0 +1,21 @@
+﻿@*
+    Router aplikacji. Każdy ekran to komponent z własną dyrektywą @page.
+    TelerikRootComponent jest wymagany przez komponenty Telerik (okna, dialogi,
+    listy rozwijane) - musi obejmować całą aplikację.
+*@
+<TelerikRootComponent>
+    <Router AppAssembly="@typeof(Routes).Assembly">
+        <Found Context="routeData">
+            <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
+            <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+        </Found>
+        <NotFound>
+            <LayoutView Layout="@typeof(MainLayout)">
+                <div class="screen">
+                    <h1>Nie znaleziono ekranu</h1>
+                    <p class="muted">Podany adres nie istnieje w aplikacji.</p>
+                </div>
+            </LayoutView>
+        </NotFound>
+    </Router>
+</TelerikRootComponent>

@@ -1,0 +1,6 @@
+# Normalizacja końców linii - projekt jest wyłącznie windowsowy.
+* text=auto eol=crlf
+
+*.png binary
+*.jpg binary
+*.ico binary

@@ -1,0 +1,39 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <!--
+      Wersja Windows SDK w TargetFramework jest wymagana: kontrolka WebView2
+      korzysta z API kompozycji WinRT, a te są dostępne tylko przy jawnie
+      podanej wersji platformy Windows.
+    -->
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>DTECH.IIoT.Viewer</RootNamespace>
+    <AssemblyName>DTECH.IIoT.Viewer</AssemblyName>
+    <!-- Ostrzeżenia kompilatora traktujemy poważnie, ale nie blokują buildu praktykanta. -->
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Blazor Hybrid: okno WPF hostuje komponenty Razor przez BlazorWebView. -->
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Wpf" Version="10.0.101" />
+    <!-- Kontener DI + konfiguracja (Host.CreateApplicationBuilder). -->
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.12" />
+    <!-- IHttpClientFactory dla klienta API kolektora (ekran 4). -->
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.12" />
+    <!-- Biblioteka komponentów UI: siatki, formularze, wykresy. -->
+    <PackageReference Include="Telerik.UI.for.Blazor" Version="15.0.1" />
+    <!-- Dostęp do SQL Server: piszemy zapytania SQL ręcznie, bez ORM. -->
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="7.1.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Mock interfejsu to dokumentacja, nie część aplikacji. -->
+    <None Include="D-TECH-IIoT-Viewer-mock-4-ekrany-GIP-razem.html" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,91 @@
+﻿@page "/"
+@inject ConnectionSettingsStore SettingsStore
+@inject SqlDataService SqlData
+@inject AppState AppState
+
+<PageTitle>Połączenie SQL · D-TECH IIoT Viewer</PageTitle>
+
+<div class="screen">
+    <div class="page-head">
+        <div>
+            <div class="eyebrow">KONFIGURACJA</div>
+            <h1>Połączenie z SQL Server</h1>
+            <p>Ustaw źródło danych dla listy kolektorów i wykresów.</p>
+        </div>
+        <span class="badge">SQL · tylko odczyt</span>
+    </div>
+
+    <div class="todo-box">
+        <h3>Ekran 1 — do zrobienia (dzień 3 i 4)</h3>
+        <ul>
+            <li>Zbuduj formularz zgodny z mockiem: serwer, baza, uwierzytelnianie (Windows / SQL Server), login i hasło.</li>
+            <li>Pola login i hasło aktywne tylko przy uwierzytelnianiu SQL Server.</li>
+            <li>Przycisk „Testuj połączenie” wywołuje <code>SqlDataService.TestConnectionAsync</code> i pokazuje zrozumiały wynik.</li>
+            <li>Obsłuż trzy przypadki: połączenie poprawne, błędny login, serwer niedostępny.</li>
+            <li>Po udanym teście zapisz ustawienia przez <code>ConnectionSettingsStore.Save</code> i ustaw <code>AppState.Connection</code>.</li>
+            <li>Hasła nie zapisujemy nigdzie na dysku.</li>
+        </ul>
+    </div>
+
+    @*
+        Panel poniżej to działający przykład: pokazuje, że wstrzykiwanie zależności
+        i komponenty Telerik są poprawnie skonfigurowane. Usuń go, kiedy formularz
+        połączenia będzie gotowy.
+    *@
+    <div class="panel" style="margin-top:18px">
+        <div class="panel-title">
+            <h2>Diagnostyka szkieletu</h2>
+            <span class="small muted">Przykład do usunięcia po zbudowaniu formularza</span>
+        </div>
+        <div class="panel-body">
+            <p class="small muted">
+                Plik zapisanych ustawień: <code>@SettingsStore.FilePath</code><br />
+                Zapisane ustawienia: <strong>@(_savedSettingsFound ? "znalezione" : "brak")</strong>
+            </p>
+
+            <div class="form-grid">
+                <label class="field">
+                    <span>Pole tekstowe Telerik</span>
+                    <TelerikTextBox @bind-Value="_sampleText" Placeholder="Wpisz cokolwiek" />
+                </label>
+                <label class="field">
+                    <span>Obsługa przycisku w C#</span>
+                    <TelerikButton OnClick="@OnSampleClick" ThemeColor="@Telerik.Blazor.ThemeConstants.Button.ThemeColor.Primary">
+                        Sprawdź szkielet
+                    </TelerikButton>
+                </label>
+            </div>
+
+            @if (_sampleResult is not null)
+            {
+                <div class="statusbox ok" style="margin-top:14px">@_sampleResult</div>
+            }
+        </div>
+    </div>
+
+    <div class="notice-line" style="margin-top:18px">
+        <span>ℹ</span>
+        <span>
+            Mock jest wzorem interfejsu, nie gotowym programem. Wynik testu połączenia
+            musi pochodzić z rzeczywistej próby połączenia z bazą, a nie z symulacji.
+        </span>
+    </div>
+</div>
+
+@code {
+    private bool _savedSettingsFound;
+    private string _sampleText = string.Empty;
+    private string? _sampleResult;
+
+    protected override void OnInitialized()
+    {
+        // Odczyt zapisanych wcześniej ustawień - bez hasła.
+        _savedSettingsFound = SettingsStore.Load() is not null;
+    }
+
+    private void OnSampleClick()
+    {
+        var text = string.IsNullOrWhiteSpace(_sampleText) ? "(pole puste)" : _sampleText;
+        _sampleResult = $"Szkielet działa. Telerik i DI odpowiadają. Wpisano: {text}";
+    }
+}

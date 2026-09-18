@@ -1,0 +1,11 @@
+﻿<Application x:Class="DTECH.IIoT.Viewer.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:DTECH.IIoT.Viewer">
+    <!--
+        Świadomie nie ustawiamy StartupUri. Okno główne tworzymy w App.OnStartup,
+        żeby najpierw zbudować kontener zależności i przekazać go do okna.
+    -->
+    <Application.Resources>
+    </Application.Resources>
+</Application>

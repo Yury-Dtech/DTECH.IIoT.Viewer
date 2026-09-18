@@ -1,0 +1,48 @@
+﻿@page "/collectors"
+@inject SqlDataService SqlData
+@inject AppState AppState
+@inject NavigationManager Navigation
+
+<PageTitle>Wybór kolektora · D-TECH IIoT Viewer</PageTitle>
+
+<div class="screen">
+    <div class="page-head">
+        <div>
+            <div class="eyebrow">KOLEKTORY</div>
+            <h1>Wybierz kolektor</h1>
+            <p>Wybrane urządzenie będzie wspólne dla wykresów i sterowania wyjściami.</p>
+        </div>
+    </div>
+
+    @if (!AppState.IsConnected)
+    {
+        @*
+            Wzór „guard”: bez połączenia z bazą nie ma czego wyświetlać.
+            Ten sam wzór stosujemy na ekranach 3 i 4.
+        *@
+        <div class="statusbox warn">
+            Brak połączenia z bazą danych.
+            <a href="">Przejdź do ekranu połączenia SQL</a> i wykonaj test połączenia.
+        </div>
+    }
+    else
+    {
+        <div class="todo-box">
+            <h3>Ekran 2 — do zrobienia (dzień 4 i 5)</h3>
+            <ul>
+                <li>Pobierz kolektory przez <code>SqlDataService.GetCollectorsAsync</code>.</li>
+                <li>Wyświetl je w <code>TelerikGrid</code>: nazwa, SN, IP, aktualność danych.</li>
+                <li>Dodaj wyszukiwanie po nazwie, SN i IP.</li>
+                <li>Pokaż, czy dane kolektora są aktualne (<code>Collector.IsDataFresh</code>).</li>
+                <li>Po wybraniu wiersza ustaw <code>AppState.SelectedCollector</code> — wtedy ekrany 3 i 4 zobaczą właściwe urządzenie.</li>
+                <li>Dodaj przycisk „Odśwież listę”.</li>
+            </ul>
+        </div>
+    }
+</div>
+
+@code {
+    // TODO (dzień 4): w OnInitializedAsync pobierz listę kolektorów z bazy
+    // i zapisz ją w polu, na którym oprzesz TelerikGrid.
+    // Pamiętaj o obsłudze błędu zapytania - baza może być chwilowo niedostępna.
+}

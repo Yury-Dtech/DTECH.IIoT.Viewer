@@ -1,0 +1,50 @@
+﻿@page "/outputs"
+@inject CollectorApiClient ApiClient
+@inject AppState AppState
+
+<PageTitle>Sterowanie wyjściami · D-TECH IIoT Viewer</PageTitle>
+
+<div class="screen">
+    <div class="page-head">
+        <div>
+            <div class="eyebrow">STEROWANIE</div>
+            <h1>Wyjścia kolektora</h1>
+            <p>Ustawiaj pojedyncze wyjścia przez API wskazanego urządzenia.</p>
+        </div>
+        <span class="badge demo">API · niezaimplementowane</span>
+    </div>
+
+    @if (!AppState.HasSelectedCollector)
+    {
+        <div class="statusbox warn">
+            Nie wybrano kolektora.
+            <a href="collectors">Przejdź do wyboru kolektora</a>.
+        </div>
+    }
+    else
+    {
+        <div class="statusbox error">
+            <strong>Pracuj wyłącznie na kolektorze testowym.</strong>
+            Polecenia ON/OFF przełączają fizyczne wyjścia urządzenia. Adres kolektora
+            testowego podaje opiekun — patrz <code>docs/srodowisko.md</code>.
+        </div>
+
+        <div class="todo-box" style="margin-top:18px">
+            <h3>Ekran 4 — do zrobienia (tydzień 3)</h3>
+            <ul>
+                <li>Lista wyjść z numeracją <strong>z dokumentacji urządzenia</strong>, nie z oznaczeń w mocku.</li>
+                <li>Dla każdego wyjścia przyciski ON i OFF.</li>
+                <li>Przed wysłaniem dialog potwierdzenia pokazujący urządzenie i numer wyjścia.</li>
+                <li>Wywołanie <code>CollectorApiClient.SetOutputAsync</code> — jedno polecenie naraz.</li>
+                <li>Pokaż wynik: potwierdzony, przyjęty bez potwierdzenia, brak odpowiedzi, błąd API.</li>
+                <li>Brak automatycznych ponowień. Powtórne wysłanie to decyzja operatora.</li>
+                <li>Przy braku odpowiedzi napisz wyraźnie, że stan wyjścia jest nieznany.</li>
+            </ul>
+        </div>
+    }
+</div>
+
+@code {
+    // TODO (tydzień 3): dialog potwierdzenia zrób na TelerikDialog,
+    // a wynik polecenia pokaż w panelu pod listą wyjść.
+}

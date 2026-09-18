@@ -1,0 +1,290 @@
+/*
+  Powłoka aplikacji D-TECH IIoT Viewer.
+
+  Paleta i podstawowe klasy pochodzą z mocku
+  D-TECH-IIoT-Viewer-mock-4-ekrany-GIP-razem.html.
+  Jeśli przenosisz z mocku kolejny fragment interfejsu i brakuje klasy CSS —
+  znajdź ją w sekcji <style> mocku i dopisz tutaj.
+
+  Uwaga: celowo NIE stylujemy tu globalnie <button>, <input> ani <select>,
+  bo nadpisałoby to wygląd komponentów Telerik.
+*/
+
+:root {
+    color-scheme: light;
+    --bg: #fff;
+    --panel: #f5f5f5;
+    --fg: #262626;
+    --muted: #626262;
+    --border: #dedede;
+    --accent: #bf510a;
+    --accent-bg: #fff2e7;
+    --error-bg: #fde8e8;
+    --error: #a91d28;
+    --ok: #247b45;
+    --ok-bg: #eff8f1;
+    --warn: #956000;
+    --warn-bg: #fff9e9;
+    --radius: 4px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+    height: 100%;
+}
+
+body {
+    margin: 0;
+    background: #ededed;
+    color: var(--fg);
+    font: 14px/1.45 'Segoe UI', Arial, sans-serif;
+    font-variant-numeric: tabular-nums;
+    overflow: hidden;
+}
+
+.startup-splash {
+    padding: 24px;
+    color: var(--muted);
+}
+
+/* ---------- Szkielet: nagłówek, zakładki, treść, stopka ---------- */
+
+.app-shell {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background: var(--bg);
+}
+
+.topbar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 22px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+    flex: 0 0 auto;
+}
+
+.brand {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: .5px;
+}
+
+.brand em {
+    color: var(--accent);
+    font-style: normal;
+}
+
+.app-title { font-size: 15px; font-weight: 600; }
+.app-subtitle { font-size: 12px; color: var(--muted); }
+.spacer { flex: 1 1 auto; }
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 9px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--panel);
+    color: var(--muted);
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.badge.demo {
+    border-color: #f0cdae;
+    background: var(--accent-bg);
+    color: var(--accent);
+}
+
+.badge.ok { border-color: #bfe3cc; background: var(--ok-bg); color: var(--ok); }
+.badge.warn { border-color: #ecd9a5; background: var(--warn-bg); color: var(--warn); }
+.badge.error { border-color: #f0c3c3; background: var(--error-bg); color: var(--error); }
+
+.tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+    padding: 0 12px;
+    flex: 0 0 auto;
+}
+
+.tabs a {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    padding: 13px 18px;
+    border-bottom: 2px solid transparent;
+    color: var(--fg);
+    font-size: 14px;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.tabs a:hover { color: var(--accent); }
+
+.tabs a.active {
+    border-bottom-color: var(--accent);
+    background: var(--bg);
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.tab-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 21px;
+    height: 21px;
+    border-radius: 50%;
+    background: var(--border);
+    color: var(--fg);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.tabs a.active .tab-num { background: var(--accent); color: #fff; }
+
+.app-main {
+    flex: 1 1 auto;
+    overflow: auto;
+}
+
+.screen { padding: 24px 28px; }
+
+.page-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 18px;
+    margin-bottom: 22px;
+}
+
+.page-head > div { flex: 1 1 auto; }
+
+.eyebrow {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    color: var(--accent);
+}
+
+.page-head h1 { margin: 4px 0 6px; font-size: 25px; font-weight: 600; }
+.page-head p { margin: 0; color: var(--muted); }
+
+.footer {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: 9px 22px;
+    border-top: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--muted);
+    font-size: 12px;
+    flex: 0 0 auto;
+}
+
+.footer .last { margin-left: auto; }
+
+/* ---------- Panele i formularze ---------- */
+
+.panel {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg);
+    margin-bottom: 18px;
+}
+
+.panel-title {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    padding: 13px 18px;
+    border-bottom: 1px solid var(--border);
+}
+
+.panel-title h2 { margin: 0; font-size: 15px; font-weight: 600; }
+
+.panel-body { padding: 18px; }
+
+.panel-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 13px 18px;
+    border-top: 1px solid var(--border);
+    background: var(--panel);
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.span-2 { grid-column: 1 / -1; }
+
+.field { display: grid; gap: 6px; }
+.field > span:first-child { font-size: 13px; font-weight: 600; }
+
+.help { font-size: 12px; color: var(--muted); }
+.small { font-size: 12px; }
+.muted { color: var(--muted); }
+
+.statusbox {
+    padding: 11px 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--panel);
+}
+
+.statusbox.ok { border-color: #bfe3cc; background: var(--ok-bg); color: var(--ok); }
+.statusbox.warn { border-color: #ecd9a5; background: var(--warn-bg); color: var(--warn); }
+.statusbox.error { border-color: #f0c3c3; background: var(--error-bg); color: var(--error); }
+
+.notice-line {
+    display: flex;
+    gap: 9px;
+    padding: 11px 14px;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+    color: var(--muted);
+    font-size: 12px;
+}
+
+/* Blok TODO widoczny w aplikacji - usuwaj go wraz z realizacją zadania. */
+.todo-box {
+    padding: 14px 16px;
+    border: 1px dashed var(--accent);
+    border-radius: var(--radius);
+    background: var(--accent-bg);
+    color: #7a3406;
+}
+
+.todo-box h3 { margin: 0 0 8px; font-size: 14px; }
+.todo-box ul { margin: 0; padding-left: 20px; }
+.todo-box li { margin-bottom: 4px; }
+
+/* ---------- Obsługa błędów Blazora ---------- */
+
+#blazor-error-ui {
+    display: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    padding: 10px 16px;
+    background: var(--warn-bg);
+    color: var(--warn);
+    box-shadow: 0 -1px 3px rgba(0, 0, 0, .2);
+}
+
+#blazor-error-ui .dismiss {
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    cursor: pointer;
+}

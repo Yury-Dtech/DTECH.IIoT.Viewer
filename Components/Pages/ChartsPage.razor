@@ -1,0 +1,44 @@
+﻿@page "/charts"
+@inject SqlDataService SqlData
+@inject AppState AppState
+
+<PageTitle>Wykresy GIP i energii · D-TECH IIoT Viewer</PageTitle>
+
+<div class="screen">
+    <div class="page-head">
+        <div>
+            <div class="eyebrow">POMIARY</div>
+            <h1>Przebiegi GIP i energii</h1>
+            <p>Wszystkie wejścia GIP jednocześnie, ze wspólną osią czasu. Energia poniżej.</p>
+        </div>
+        <span class="badge">Odświeżanie ręczne</span>
+    </div>
+
+    @if (!AppState.HasSelectedCollector)
+    {
+        <div class="statusbox warn">
+            Nie wybrano kolektora.
+            <a href="collectors">Przejdź do wyboru kolektora</a>.
+        </div>
+    }
+    else
+    {
+        <div class="todo-box">
+            <h3>Ekran 3 — do zrobienia (tydzień 2)</h3>
+            <ul>
+                <li>Pasek zakresu czasu: gotowe presety (2 min, 10 min, 1 godzina) oraz zakres własny.</li>
+                <li>Przycisk „Pokaż / odśwież” — odświeżanie tylko ręczne, bez timera.</li>
+                <li>Wszystkie wejścia GIP w jednym panelu, jedno pod drugim, na wspólnej osi czasu.</li>
+                <li>Poniżej wykres energii z przełącznikiem: moc (kW) albo licznik (kWh).</li>
+                <li>Ten sam zakres czasu obowiązuje dla GIP i dla energii.</li>
+                <li>Gdy w zakresie nie ma danych, pokaż wyraźny komunikat, a nie pusty wykres.</li>
+            </ul>
+        </div>
+    }
+</div>
+
+@code {
+    // TODO (tydzień 2): pobieraj dane przez GetGipSeriesAsync i GetEnergySeriesAsync,
+    // a następnie rysuj je komponentem TelerikChart.
+    // Nie licz tu czasu pracy, KPI ani estymacji - to jest poza zakresem zadania.
+}

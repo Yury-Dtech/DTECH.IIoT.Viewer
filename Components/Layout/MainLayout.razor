@@ -1,0 +1,87 @@
+﻿@inherits LayoutComponentBase
+@implements IDisposable
+@inject AppState AppState
+
+@*
+    Powłoka aplikacji: pasek górny, cztery zakładki ekranów, treść i stopka.
+    Układ i podpisy odpowiadają mockowi D-TECH-IIoT-Viewer-mock-4-ekrany-GIP-razem.html.
+
+    Stopka pokazuje stan połączenia i wybrany kolektor, żeby na każdym ekranie
+    było widać, na jakich danych pracujemy.
+*@
+
+<div class="app-shell">
+    <header class="topbar">
+        <span class="brand">D<em>-</em>TECH</span>
+        <span class="app-title">IIoT Viewer</span>
+        <span class="app-subtitle">Desktop · Blazor Hybrid + WPF</span>
+        <span class="spacer"></span>
+        <span class="badge demo">Szkielet praktyk</span>
+    </header>
+
+    <nav class="tabs">
+        <NavLink href="" Match="NavLinkMatch.All">
+            <span class="tab-num">1</span><span>Połączenie SQL</span>
+        </NavLink>
+        <NavLink href="collectors">
+            <span class="tab-num">2</span><span>Wybór kolektora</span>
+        </NavLink>
+        <NavLink href="charts">
+            <span class="tab-num">3</span><span>Wykresy GIP i energii</span>
+        </NavLink>
+        <NavLink href="outputs">
+            <span class="tab-num">4</span><span>Sterowanie wyjściami</span>
+        </NavLink>
+    </nav>
+
+    <main class="app-main">
+        @Body
+    </main>
+
+    <footer class="footer">
+        <span>
+            SQL:
+            @if (AppState.IsConnected)
+            {
+                <strong>@AppState.Connection!.Server / @AppState.Connection.Database</strong>
+            }
+            else
+            {
+                <span class="muted">brak połączenia</span>
+            }
+        </span>
+        <span>
+            Kolektor:
+            @if (AppState.HasSelectedCollector)
+            {
+                <strong>@AppState.SelectedCollector!.Name</strong>
+            }
+            else
+            {
+                <span class="muted">nie wybrano</span>
+            }
+        </span>
+        <span class="last">Szkielet do praktyk · logika do zaimplementowania</span>
+    </footer>
+</div>
+
+<div id="blazor-error-ui">
+    Wystąpił nieobsłużony błąd aplikacji.
+    <a href="" class="reload">Przeładuj</a>
+    <span class="dismiss">×</span>
+</div>
+
+@code {
+    // Stopka musi się odświeżyć, gdy zmieni się połączenie albo wybrany kolektor.
+    protected override void OnInitialized()
+    {
+        AppState.Changed += OnAppStateChanged;
+    }
+
+    private void OnAppStateChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        AppState.Changed -= OnAppStateChanged;
+    }
+}
