@@ -1,22 +1,11 @@
-﻿using DTECH.IIoT.Viewer.Models;
+using System.Data;
+using Microsoft.Data.SqlClient;
+using DTECH.IIoT.Viewer.Models;
 
 namespace DTECH.IIoT.Viewer.Services;
 
 /// <summary>
 /// Cały odczyt danych z SQL Server w jednym miejscu.
-///
-/// ZADANIE PRAKTYKANTA. Metody są celowo puste - implementujesz je kolejno
-/// według planu praktyk (docs/plan-praktyk.md).
-///
-/// Zasady:
-///   - zapytania piszemy ręcznie jako SELECT ... FROM ... WHERE ... ORDER BY,
-///     bez ORM-a; chodzi o to, żebyś widział, co dokładnie jedzie do bazy;
-///   - wartości wstawiamy WYŁĄCZNIE przez parametry (cmd.Parameters.AddWithValue),
-///     nigdy przez sklejanie stringów - inaczej otwierasz SQL injection;
-///   - SqlConnection i SqlCommand trzymamy w using, żeby połączenia się zwalniały;
-///   - program tylko czyta; żadnych INSERT, UPDATE ani DELETE.
-///
-/// Nazwy tabel i kolumn dla tej bazy podaje opiekun - patrz docs/srodowisko.md.
 /// </summary>
 public class SqlDataService
 {
@@ -29,8 +18,6 @@ public class SqlDataService
 
     /// <summary>
     /// Connection string aktywnego połączenia, ustawionego na ekranie 1.
-    /// Rzuca wyjątek, gdy operator nie przeszedł jeszcze testu połączenia -
-    /// to świadoma decyzja: lepiej wyraźny błąd niż ciche puste wyniki.
     /// </summary>
     private string CurrentConnectionString =>
         _appState.Connection?.BuildConnectionString()
@@ -39,77 +26,191 @@ public class SqlDataService
 
     /// <summary>
     /// Sprawdza, czy z podanymi ustawieniami da się połączyć z bazą.
-    /// Nie rzuca wyjątków - zwraca opis wyniku do pokazania operatorowi.
     /// </summary>
-    /// <remarks>
-    /// TODO (dzień 3):
-    ///   1. Zbuduj connection string: settings.BuildConnectionString().
-    ///   2. Otwórz SqlConnection w bloku using i wywołaj OpenAsync().
-    ///   3. Zwróć wynik pozytywny z nazwą serwera i bazy.
-    ///   4. Złap SqlException i rozróżnij komunikaty: błędne dane logowania
-    ///      (Number 18456) od serwera niedostępnego (Number 53 albo timeout).
-    ///   5. Złap też ogólny Exception - inaczej literówka w nazwie serwera
-    ///      wywróci całą aplikację.
-    /// Komunikat musi być zrozumiały dla operatora, nie surowy ex.ToString().
-    /// </remarks>
-    public Task<(bool Success, string Message)> TestConnectionAsync(
+    public async Task<(bool Success, string Message)> TestConnectionAsync(
         SqlConnectionSettings settings,
         CancellationToken cancellationToken = default)
     {
-        throw new NotImplementedException("Dzień 3: test połączenia z SQL Server.");
+        try
+        {
+            var connectionString = settings.BuildConnectionString();
+            using var connection = new SqlConnection(connectionString);
+
+            await connection.OpenAsync(cancellationToken);
+
+            return (
+                Success: true,
+                Message: $"Połączono pomyślnie z serwerem '{settings.Server}' i bazą '{settings.Database}'."
+            );
+        }
+        catch (SqlException ex)
+        {
+            string userFriendlyMessage = ex.Number switch
+            {
+                18456 => "Nieprawidłowa nazwa użytkownika lub hasło SQL Server.",
+                53 or -2 => "Serwer SQL jest niedostępny lub nie odpowiada (sprawdź adres i połączenie sieciowe).",
+                4060 => $"Baza danych '{settings.Database}' nie istnieje na wskazanym serwerze.",
+                _ => $"Błąd SQL Server (Kod {ex.Number}): {ex.Message}"
+            };
+
+            return (Success: false, Message: userFriendlyMessage);
+        }
+        catch (Exception ex)
+        {
+            return (
+                Success: false,
+                Message: $"Wystąpił nieoczekiwany błąd podczas próby połączenia: {ex.Message}"
+            );
+        }
     }
 
     /// <summary>
     /// Pobiera listę kolektorów wraz z czasem ostatniego pomiaru.
     /// </summary>
-    /// <remarks>
-    /// TODO (dzień 4):
-    ///   1. Napisz SELECT zwracający id, nazwę, SN, IP i czas ostatniego pomiaru.
-    ///   2. Uporządkuj wynik po nazwie (ORDER BY).
-    ///   3. Przeczytaj rekordy przez SqlDataReader i zmapuj na obiekty Collector.
-    ///   4. Pamiętaj o kolumnach, które mogą być NULL - użyj reader.IsDBNull.
-    /// Wyszukiwanie po nazwie, SN i IP (dzień 5) możesz zrobić po stronie C#
-    /// na tej liście albo dopisać WHERE - omów z opiekunem, co jest tu sensowniejsze.
-    /// </remarks>
-    public Task<IReadOnlyList<Collector>> GetCollectorsAsync(
+    public async Task<IReadOnlyList<Collector>> GetCollectorsAsync(
         CancellationToken cancellationToken = default)
     {
-        throw new NotImplementedException("Dzień 4: pobranie listy kolektorów z bazy.");
+        var result = new List<Collector>();
+
+        const string sql = @"
+            SELECT 
+                Id, 
+                Name, 
+                SerialNo, 
+                IP AS IpAddress, 
+                PingDate AS LastDataTime
+            FROM [dbo].[Device] WITH (NOLOCK)
+            ORDER BY Id ASC";
+
+        using var connection = new SqlConnection(CurrentConnectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        using var command = new SqlCommand(sql, connection);
+        using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            int id = reader.GetInt32(0);
+            string name = reader.IsDBNull(1) ? string.Empty : reader.GetString(1);
+            string serialNumber = reader.IsDBNull(2) ? string.Empty : reader.GetString(2);
+            string ipAddress = reader.IsDBNull(3) ? string.Empty : reader.GetString(3);
+            DateTime? lastDataTime = reader.IsDBNull(4) ? null : reader.GetDateTime(4);
+
+
+            result.Add(new Collector
+            {
+                Id = id,
+                Name = name,
+                SerialNumber = serialNumber,
+                IpAddress = ipAddress,
+                LastSampleAt = lastDataTime
+            });
+        }
+        ;
+
+
+        return result;
     }
 
     /// <summary>
     /// Pobiera przebiegi wszystkich wejść GIP wybranego kolektora w zadanym zakresie czasu.
-    /// Każde wejście to osobna seria rysowana na wspólnej osi czasu.
     /// </summary>
-    /// <remarks>
-    /// TODO (tydzień 2): SELECT z filtrem po kolektorze i zakresie czasu,
-    /// ORDER BY po czasie, a następnie pogrupowanie próbek po numerze wejścia.
-    /// Zakres czasu przekazuj jako parametry zapytania, nie jako tekst.
-    /// </remarks>
-    public Task<IReadOnlyList<MeasurementSeries>> GetGipSeriesAsync(
+    public async Task<IReadOnlyList<MeasurementSeries>> GetGipSeriesAsync(
         int collectorId,
         DateTime from,
         DateTime to,
         CancellationToken cancellationToken = default)
     {
-        throw new NotImplementedException("Tydzień 2: przebiegi wejść GIP.");
+        const string sql = @"
+SELECT 
+                DeviceTime, 
+                Input1State, 
+                Input2State, 
+                Input3State, 
+                Input4State, 
+                Input5State, 
+                Input6State 
+            FROM [gip].[Data] WITH (NOLOCK)
+            WHERE DeviceId = @CollectorId 
+              AND DeviceTime >= @FromTime 
+              AND DeviceTime <= @ToTime
+            ORDER BY DeviceTime ASC";
+
+        var samplesByChannel = new Dictionary<string, List<MeasurementSample>>();
+
+        using var connection = new SqlConnection(CurrentConnectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        using var command = new SqlCommand(sql, connection);
+        command.Parameters.AddWithValue("@CollectorId", collectorId);
+        command.Parameters.AddWithValue("@FromTime", from);
+        command.Parameters.AddWithValue("@ToTime", to);
+
+        using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            string channelName = reader.IsDBNull(0) ? "GIP" : reader.GetString(0);
+            DateTime timestamp = reader.GetDateTime(1);
+            double value = reader.GetDouble(2);
+
+            if (!samplesByChannel.TryGetValue(channelName, out var samples))
+            {
+                samples = new List<MeasurementSample>();
+                samplesByChannel[channelName] = samples;
+            }
+
+            samples.Add(new MeasurementSample(timestamp, value));
+        }
+
+        return samplesByChannel
+            .Select(kvp => new MeasurementSeries(kvp.Key, kvp.Value))
+            .ToList();
     }
 
     /// <summary>
     /// Pobiera przebieg energii: moc w kW albo licznik w kWh.
     /// </summary>
-    /// <remarks>
-    /// TODO (tydzień 2): jeden zakres czasu wspólny z wykresem GIP.
-    /// Jednostki i znaczenie kolumn potwierdź z opiekunem - licznik kWh rośnie
-    /// narastająco, moc kW jest wartością chwilową i wymaga innej skali.
-    /// </remarks>
-    public Task<MeasurementSeries> GetEnergySeriesAsync(
-        int collectorId,
-        DateTime from,
-        DateTime to,
-        bool asPower,
-        CancellationToken cancellationToken = default)
+    public async Task<MeasurementSeries> GetEnergySeriesAsync(
+            int collectorId,
+            DateTime from,
+            DateTime to,
+            bool asPower,
+            CancellationToken cancellationToken = default)
     {
-        throw new NotImplementedException("Tydzień 2: przebieg energii.");
+        string columnName = asPower ? "MocCzynna" : "EnergiaCzynna";
+        string seriesName = asPower ? "Moc [kW]" : "Licznik [kWh]";
+
+        string sql = $@"
+            SELECT 
+                DeviceTime, 
+                {columnName} 
+            FROM [le].[Data] WITH (NOLOCK)
+            WHERE DeviceId = @CollectorId 
+              AND DeviceTime >= @FromTime 
+              AND DeviceTime <= @ToTime
+            ORDER BY DeviceTime ASC";
+
+        var samples = new List<MeasurementSample>();
+
+        using var connection = new SqlConnection(CurrentConnectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        using var command = new SqlCommand(sql, connection);
+        command.Parameters.AddWithValue("@CollectorId", collectorId);
+        command.Parameters.AddWithValue("@FromTime", from);
+        command.Parameters.AddWithValue("@ToTime", to);
+
+        using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            DateTime timestamp = reader.GetDateTime(0);
+            double value = reader.IsDBNull(1) ? 0.0 : Convert.ToDouble(reader.GetValue(1));
+
+            samples.Add(new MeasurementSample(timestamp, value));
+        }
+
+        return new MeasurementSeries(seriesName, samples);
     }
 }

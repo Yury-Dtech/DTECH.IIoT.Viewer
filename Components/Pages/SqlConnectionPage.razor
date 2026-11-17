@@ -1,4 +1,4 @@
-﻿@page "/"
+@page "/"
 @inject ConnectionSettingsStore SettingsStore
 @inject SqlDataService SqlData
 @inject AppState AppState
@@ -15,50 +15,72 @@
         <span class="badge">SQL · tylko odczyt</span>
     </div>
 
-    <div class="todo-box">
-        <h3>Ekran 1 — do zrobienia (dzień 3 i 4)</h3>
-        <ul>
-            <li>Zbuduj formularz zgodny z mockiem: serwer, baza, uwierzytelnianie (Windows / SQL Server), login i hasło.</li>
-            <li>Pola login i hasło aktywne tylko przy uwierzytelnianiu SQL Server.</li>
-            <li>Przycisk „Testuj połączenie” wywołuje <code>SqlDataService.TestConnectionAsync</code> i pokazuje zrozumiały wynik.</li>
-            <li>Obsłuż trzy przypadki: połączenie poprawne, błędny login, serwer niedostępny.</li>
-            <li>Po udanym teście zapisz ustawienia przez <code>ConnectionSettingsStore.Save</code> i ustaw <code>AppState.Connection</code>.</li>
-            <li>Hasła nie zapisujemy nigdzie na dysku.</li>
-        </ul>
-    </div>
-
-    @*
-        Panel poniżej to działający przykład: pokazuje, że wstrzykiwanie zależności
-        i komponenty Telerik są poprawnie skonfigurowane. Usuń go, kiedy formularz
-        połączenia będzie gotowy.
-    *@
-    <div class="panel" style="margin-top:18px">
+    <div class="panel" style="margin-top: 18px;">
         <div class="panel-title">
-            <h2>Diagnostyka szkieletu</h2>
-            <span class="small muted">Przykład do usunięcia po zbudowaniu formularza</span>
+            <h2>Parametry połączenia</h2>
         </div>
         <div class="panel-body">
-            <p class="small muted">
-                Plik zapisanych ustawień: <code>@SettingsStore.FilePath</code><br />
-                Zapisane ustawienia: <strong>@(_savedSettingsFound ? "znalezione" : "brak")</strong>
-            </p>
+            <EditForm Model="_settings" OnValidSubmit="HandleTestConnection">
+                <DataAnnotationsValidator />
 
-            <div class="form-grid">
-                <label class="field">
-                    <span>Pole tekstowe Telerik</span>
-                    <TelerikTextBox @bind-Value="_sampleText" Placeholder="Wpisz cokolwiek" />
-                </label>
-                <label class="field">
-                    <span>Obsługa przycisku w C#</span>
-                    <TelerikButton OnClick="@OnSampleClick" ThemeColor="@Telerik.Blazor.ThemeConstants.Button.ThemeColor.Primary">
-                        Sprawdź szkielet
-                    </TelerikButton>
-                </label>
-            </div>
+                <div class="form-grid">
+                    <label class="field">
+                        <span>Serwer SQL</span>
+                        <TelerikTextBox @bind-Value="_settings.Server" Placeholder="np. localhost lub IP\SQLEXPRESS" />
+                    </label>
 
-            @if (_sampleResult is not null)
+                    <label class="field">
+                        <span>Baza danych</span>
+                        <TelerikTextBox @bind-Value="_settings.Database" Placeholder="np. IIoT_Viewer" />
+                    </label>
+
+                    <label class="field">
+                        <span>Uwierzytelnianie</span>
+                            <TelerikDropDownList Data="@_authOptions"
+                                                 Value="@_isWindowsAuth"
+                                                 ValueChanged="@((bool val) => OnAuthTypeChanged(val))"
+                                                 ValueExpression="@(() => _isWindowsAuth)"
+                                                 ValueField="IsWindows"
+                                                 TextField="Name" />
+                    </label>
+
+                    <label class="field">
+                        <span>Użytkownik (Login)</span>
+                        <TelerikTextBox @bind-Value="_settings.Login"
+                                        Enabled="@(!_isWindowsAuth)"
+                                        Placeholder="@(_isWindowsAuth ? "Domena\\Użytkownik (Windows)" : "sa")" />
+                    </label>
+
+                    <label class="field">
+                        <span>Hasło</span>
+                        <TelerikTextBox @bind-Value="_settings.Password"
+                                        Password="true"
+                                        Enabled="@(!_isWindowsAuth)"
+                                        Placeholder="@(_isWindowsAuth ? "Nie wymagane" : "••••••••")" />
+                    </label>
+
+                    <div class="field" style="justify-content: flex-end; align-items: flex-end;">
+                        <TelerikButton ButtonType="@ButtonType.Submit"
+                                       ThemeColor="@Telerik.Blazor.ThemeConstants.Button.ThemeColor.Primary"
+                                       Enabled="@(!_isTesting)">
+                            @if (_isTesting)
+                            {
+                                <span>Łączenie...</span>
+                            }
+                            else
+                            {
+                                <span>Testuj i zapisz połączenie</span>
+                            }
+                        </TelerikButton>
+                    </div>
+                </div>
+            </EditForm>
+
+            @if (_testResult is not null)
             {
-                <div class="statusbox ok" style="margin-top:14px">@_sampleResult</div>
+                <div class="statusbox @(_testResult.Value.Success ? "ok" : "warn")" style="margin-top: 18px;">
+                    <strong>@(_testResult.Value.Success ? "Sukces" : "Błąd połączenia"):</strong> @_testResult.Value.Message
+                </div>
             }
         </div>
     </div>
@@ -66,26 +88,74 @@
     <div class="notice-line" style="margin-top:18px">
         <span>ℹ</span>
         <span>
-            Mock jest wzorem interfejsu, nie gotowym programem. Wynik testu połączenia
-            musi pochodzić z rzeczywistej próby połączenia z bazą, a nie z symulacji.
+            Ustawienia serwera i bazy są zapamiętywane na tym komputerze. Hasło ze względów bezpieczeństwa nie jest zapisywane na dysku.
         </span>
     </div>
 </div>
 
 @code {
-    private bool _savedSettingsFound;
-    private string _sampleText = string.Empty;
-    private string? _sampleResult;
+    private SqlConnectionSettings _settings = new();
+    private bool _isWindowsAuth = true;
+    private bool _isTesting = false;
+    private (bool Success, string Message)? _testResult;
+
+    private readonly List<AuthOption> _authOptions = new()
+    {
+        new AuthOption { Name = "Uwierzytelnianie Windows", IsWindows = true },
+        new AuthOption { Name = "SQL Server Authentication", IsWindows = false }
+    };
 
     protected override void OnInitialized()
     {
-        // Odczyt zapisanych wcześniej ustawień - bez hasła.
-        _savedSettingsFound = SettingsStore.Load() is not null;
+        var saved = SettingsStore.Load();
+        if (saved != null)
+        {
+            _settings = saved;
+            _isWindowsAuth = _settings.AuthMode == SqlAuthMode.Windows;
+        }
+        else
+        {
+            _settings.AuthMode = SqlAuthMode.Windows;
+        }
     }
 
-    private void OnSampleClick()
+    private void OnAuthTypeChanged(bool isWindows)
     {
-        var text = string.IsNullOrWhiteSpace(_sampleText) ? "(pole puste)" : _sampleText;
-        _sampleResult = $"Szkielet działa. Telerik i DI odpowiadają. Wpisano: {text}";
+        _isWindowsAuth = isWindows;
+        _settings.AuthMode = isWindows ? SqlAuthMode.Windows : SqlAuthMode.SqlServer;
+        if (isWindows)
+        {
+            _settings.Login = string.Empty;
+            _settings.Password = string.Empty;
+        }
+    }
+
+    private async Task HandleTestConnection()
+    {
+        _isTesting = true;
+        _testResult = null;
+
+        _settings.AuthMode = _isWindowsAuth ? SqlAuthMode.Windows : SqlAuthMode.SqlServer;
+
+        var result = await SqlData.TestConnectionAsync(_settings);
+        _testResult = result;
+
+        if (result.Success)
+        {
+            AppState.Connection = _settings;
+            SettingsStore.Save(_settings);
+        }
+        else
+        {
+            AppState.Connection = null;
+        }
+
+        _isTesting = false;
+    }
+
+    private class AuthOption
+    {
+        public string Name { get; set; } = string.Empty;
+        public bool IsWindows { get; set; }
     }
 }
