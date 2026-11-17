@@ -1,4 +1,4 @@
-﻿@page "/charts"
+@page "/charts"
 @inject SqlDataService SqlData
 @inject AppState AppState
 
@@ -11,7 +11,13 @@
             <h1>Przebiegi GIP i energii</h1>
             <p>Wszystkie wejścia GIP jednocześnie, ze wspólną osią czasu. Energia poniżej.</p>
         </div>
-        <span class="badge">Odświeżanie ręczne</span>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <TelerikButton OnClick="LoadDataAsync"
+                           ThemeColor="@Telerik.Blazor.ThemeConstants.Button.ThemeColor.Primary"
+                           Enabled="@(!_isLoading)">
+                @(_isLoading ? "Ładowanie..." : "🔄 Pokaż / odśwież")
+            </TelerikButton>
+        </div>
     </div>
 
     @if (!AppState.HasSelectedCollector)
@@ -23,22 +29,222 @@
     }
     else
     {
-        <div class="todo-box">
-            <h3>Ekran 3 — do zrobienia (tydzień 2)</h3>
-            <ul>
-                <li>Pasek zakresu czasu: gotowe presety (2 min, 10 min, 1 godzina) oraz zakres własny.</li>
-                <li>Przycisk „Pokaż / odśwież” — odświeżanie tylko ręczne, bez timera.</li>
-                <li>Wszystkie wejścia GIP w jednym panelu, jedno pod drugim, na wspólnej osi czasu.</li>
-                <li>Poniżej wykres energii z przełącznikiem: moc (kW) albo licznik (kWh).</li>
-                <li>Ten sam zakres czasu obowiązuje dla GIP i dla energii.</li>
-                <li>Gdy w zakresie nie ma danych, pokaż wyraźny komunikat, a nie pusty wykres.</li>
-            </ul>
+        <!-- Pasek zakresu czasu i opcji -->
+        <div class="panel" style="margin-top: 18px; margin-bottom: 18px;">
+            <div class="panel-body" style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-end;">
+                <label class="field" style="flex: 1; min-width: 200px;">
+                    <span>Zakres czasowy</span>
+                    <TelerikDropDownList Data="@_timePresets"
+                                       @bind-Value="_selectedPreset"
+                                       TextField="Name"
+                                       ValueField="Id"
+                                       OnChange="@OnPresetChanged" />
+                </label>
+
+                <label class="field" style="flex: 1; min-width: 180px;">
+                    <span>Od (Data i czas)</span>
+                    <TelerikDateTimePicker @bind-Value="_fromTime" Enabled="@(_selectedPreset == "custom")" />
+                </label>
+
+                <label class="field" style="flex: 1; min-width: 180px;">
+                    <span>Do (Data i czas)</span>
+                    <TelerikDateTimePicker @bind-Value="_toTime" Enabled="@(_selectedPreset == "custom")" />
+                </label>
+
+                <label class="field" style="flex: 1; min-width: 180px;">
+                    <span>Tryb energii</span>
+                    <TelerikDropDownList Data="@_energyModes"
+                                       @bind-Value="_energyAsPower"
+                                       TextField="Name"
+                                       ValueField="IsPower" />
+                </label>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <div class="statusbox warn" style="margin-bottom: 18px;">
+                <strong>Błąd pobierania pomiarów:</strong> @_errorMessage
+            </div>
+        }
+
+        <!-- Panel wykresów GIP -->
+        <div class="panel" style="margin-top: 18px;">
+            <div class="panel-title">
+                <h2>Wejścia GIP</h2>
+                <span class="small muted">Kolektor: @AppState.SelectedCollector.Name</span>
+            </div>
+            <div class="panel-body">
+                @if (_gipSeries == null || !_gipSeries.Any() || !_gipSeries.SelectMany(s => s.Samples).Any())
+                {
+                    <div class="statusbox" style="text-align: center; padding: 30px;">
+                        Brak danych pomiarowych GIP w wybranym zakresie czasu.
+                    </div>
+                }
+                else
+                {
+                    <TelerikChart Height="350px">
+                        <ChartCategoryAxis>
+                            <ChartCategoryAxisItem Type="ChartCategoryAxisType.Date" BaseUnit="ChartCategoryAxisBaseUnit.Minutes" />
+                        </ChartCategoryAxis>
+
+                        <ChartSeriesItems>
+                            @foreach (var series in _gipSeries)
+                            {
+                                <ChartSeries Type="ChartSeriesType.Line"
+                                             Name="@series.ChannelName"
+                                             Data="@series.Samples"
+                                             Field="@nameof(MeasurementSample.Value)"
+                                             CategoryField="@nameof(MeasurementSample.Timestamp)">
+                                    <ChartSeriesMarkers Visible="false" />
+                                </ChartSeries>
+                            }
+                        </ChartSeriesItems>
+
+                        <ChartLegend Position="ChartLegendPosition.Bottom" />
+                        <ChartTooltip Visible="true" />
+                    </TelerikChart>
+                }
+            </div>
+        </div>
+
+        <!-- Panel wykresu Energii -->
+        <div class="panel" style="margin-top: 18px;">
+            <div class="panel-title">
+                <h2>Energia (@(_energyAsPower ? "Moc [kW]" : "Licznik [kWh]"))</h2>
+            </div>
+            <div class="panel-body">
+                @if (_energySeries == null || !_energySeries.Samples.Any())
+                {
+                    <div class="statusbox" style="text-align: center; padding: 30px;">
+                        Brak danych energii w wybranym zakresie czasu.
+                    </div>
+                }
+                else
+                {
+                    <TelerikChart Height="300px">
+                        <ChartCategoryAxis>
+                            <ChartCategoryAxisItem Type="ChartCategoryAxisType.Date" BaseUnit="ChartCategoryAxisBaseUnit.Minutes" />
+                        </ChartCategoryAxis>
+
+                        <ChartSeriesItems>
+                            <ChartSeries Type="ChartSeriesType.Line"
+                                         Name="@_energySeries.ChannelName"
+                                         Data="@_energySeries.Samples"
+                                         Field="@nameof(MeasurementSample.Value)"
+                                         CategoryField="@nameof(MeasurementSample.Timestamp)"
+                                         Color="#ff6b6b">
+                                <ChartSeriesMarkers Visible="false" />
+                            </ChartSeries>
+                        </ChartSeriesItems>
+
+                        <ChartLegend Position="ChartLegendPosition.Bottom" />
+                        <ChartTooltip Visible="true" />
+                    </TelerikChart>
+                }
+            </div>
         </div>
     }
 </div>
 
 @code {
-    // TODO (tydzień 2): pobieraj dane przez GetGipSeriesAsync i GetEnergySeriesAsync,
-    // a następnie rysuj je komponentem TelerikChart.
-    // Nie licz tu czasu pracy, KPI ani estymacji - to jest poza zakresem zadania.
+    private bool _isLoading = false;
+    private string? _errorMessage;
+
+    // Zakres czasu
+    private string _selectedPreset = "10min";
+    private DateTime _fromTime = DateTime.Now.AddMinutes(-10);
+    private DateTime _toTime = DateTime.Now;
+
+    // Przełącznik energii (True = Moc kW, False = Licznik kWh)
+    private bool _energyAsPower = true;
+
+    // Dane do wykresów
+    private IReadOnlyList<MeasurementSeries> _gipSeries = new List<MeasurementSeries>();
+    private MeasurementSeries? _energySeries;
+
+    private readonly List<TimePresetOption> _timePresets = new()
+    {
+        new TimePresetOption { Id = "2min", Name = "Ostatnie 2 minuty", Minutes = 2 },
+        new TimePresetOption { Id = "10min", Name = "Ostatnie 10 minut", Minutes = 10 },
+        new TimePresetOption { Id = "1hour", Name = "Ostatnia 1 godzina", Minutes = 60 },
+        new TimePresetOption { Id = "custom", Name = "Zakres własny...", Minutes = 0 }
+    };
+
+    private readonly List<EnergyModeOption> _energyModes = new()
+    {
+        new EnergyModeOption { Name = "Moc [kW]", IsPower = true },
+        new EnergyModeOption { Name = "Licznik [kWh]", IsPower = false }
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AppState.HasSelectedCollector)
+        {
+            UpdateTimesFromPreset("10min");
+            await LoadDataAsync();
+        }
+    }
+
+    private void OnPresetChanged(object presetIdObj)
+    {
+        string presetId = presetIdObj?.ToString() ?? "10min";
+        _selectedPreset = presetId;
+
+        if (presetId != "custom")
+        {
+            UpdateTimesFromPreset(presetId);
+        }
+    }
+
+    private void UpdateTimesFromPreset(string presetId)
+    {
+        _toTime = DateTime.Now;
+        int minutes = presetId switch
+        {
+            "2min" => 2,
+            "10min" => 10,
+            "1hour" => 60,
+            _ => 10
+        };
+        _fromTime = _toTime.AddMinutes(-minutes);
+    }
+
+    private async Task LoadDataAsync()
+    {
+        if (!AppState.HasSelectedCollector) return;
+
+        _isLoading = true;
+        _errorMessage = null;
+
+        try
+        {
+            int collectorId = AppState.SelectedCollector!.Id;
+
+            // Równoległe lub sekwencyjne pobranie danych GIP oraz Energii
+            _gipSeries = await SqlData.GetGipSeriesAsync(collectorId, _fromTime, _toTime);
+            _energySeries = await SqlData.GetEnergySeriesAsync(collectorId, _fromTime, _toTime, _energyAsPower);
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private class TimePresetOption
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public int Minutes { get; set; }
+    }
+
+    private class EnergyModeOption
+    {
+        public string Name { get; set; } = string.Empty;
+        public bool IsPower { get; set; }
+    }
 }

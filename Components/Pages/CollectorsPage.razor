@@ -1,4 +1,4 @@
-﻿@page "/collectors"
+@page "/collectors"
 @inject SqlDataService SqlData
 @inject AppState AppState
 @inject NavigationManager Navigation
@@ -16,10 +16,6 @@
 
     @if (!AppState.IsConnected)
     {
-        @*
-            Wzór „guard”: bez połączenia z bazą nie ma czego wyświetlać.
-            Ten sam wzór stosujemy na ekranach 3 i 4.
-        *@
         <div class="statusbox warn">
             Brak połączenia z bazą danych.
             <a href="">Przejdź do ekranu połączenia SQL</a> i wykonaj test połączenia.
@@ -27,22 +23,186 @@
     }
     else
     {
-        <div class="todo-box">
-            <h3>Ekran 2 — do zrobienia (dzień 4 i 5)</h3>
-            <ul>
-                <li>Pobierz kolektory przez <code>SqlDataService.GetCollectorsAsync</code>.</li>
-                <li>Wyświetl je w <code>TelerikGrid</code>: nazwa, SN, IP, aktualność danych.</li>
-                <li>Dodaj wyszukiwanie po nazwie, SN i IP.</li>
-                <li>Pokaż, czy dane kolektora są aktualne (<code>Collector.IsDataFresh</code>).</li>
-                <li>Po wybraniu wiersza ustaw <code>AppState.SelectedCollector</code> — wtedy ekrany 3 i 4 zobaczą właściwe urządzenie.</li>
-                <li>Dodaj przycisk „Odśwież listę”.</li>
-            </ul>
+        <div class="panel" style="margin-top: 18px;">
+            <div class="panel-title" style="display: flex; justify-content: space-between; align-items: center;">
+                <h2>Lista urządzeń</h2>
+                <TelerikButton OnClick="@LoadCollectorsAsync"
+                               ThemeColor="@Telerik.Blazor.ThemeConstants.Button.ThemeColor.Secondary"
+                               Enabled="@(!_isLoading)">
+                    @if (_isLoading)
+                    {
+                        <span>Ładowanie...</span>
+                    }
+                    else
+                    {
+                        <span>Odśwież listę</span>
+                    }
+                </TelerikButton>
+            </div>
+
+            <div class="panel-body">
+                @if (!string.IsNullOrEmpty(_errorMessage))
+                {
+                    <div class="statusbox warn" style="margin-bottom: 16px;">
+                        <strong>Błąd pobierania danych:</strong> @_errorMessage
+                    </div>
+                }
+
+                <div style="margin-bottom: 16px; max-width: 350px;">
+                    <TelerikTextBox Value="@_searchQuery"
+                                    ValueChanged="@OnSearchQueryChanged"
+                                    Placeholder="🔍 Szukaj po nazwie, SN lub IP..." />
+                </div>
+
+                <TelerikGrid Data="@_filteredCollectors"
+                             Pageable="true"
+                             PageSize="10"
+                             Sortable="true"
+                             SelectionMode="@GridSelectionMode.Single"
+                             SelectedItems="@_selectedItems"
+                             SelectedItemsChanged="@((IEnumerable<Collector> items) => OnCollectorSelected(items))">
+                    <GridColumns>
+                        <GridColumn Field="@nameof(Collector.Name)" Title="Nazwa urządzenia" />
+                        <GridColumn Field="@nameof(Collector.SerialNumber)" Title="Numer seryjny (SN)" />
+                        <GridColumn Field="@nameof(Collector.IpAddress)" Title="Adres IP" />
+                        <GridColumn Field="@nameof(Collector.LastSampleAt)" Title="Ostatni pomiar">
+                            <Template>
+                                @{
+                                    var item = (Collector)context;
+                                    if (item.LastSampleAt.HasValue)
+                                    {
+                                        <span>@item.LastSampleAt.Value.ToString("yyyy-MM-dd HH:mm:ss")</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="small muted">Brak danych</span>
+                                    }
+                                }
+                            </Template>
+                        </GridColumn>
+                        <GridColumn Title="Aktualność" Width="140px">
+                            <Template>
+                                @{
+                                    var item = (Collector)context;
+                                    bool isFresh = item.LastSampleAt.HasValue && (DateTime.Now - item.LastSampleAt.Value).TotalMinutes <= 15;
+                                }
+                                @if (isFresh)
+                                {
+                                    <span class="badge ok">Online</span>
+                                }
+                                else
+                                {
+                                    <span class="badge warn">Brak danych</span>
+                                }
+                            </Template>
+                        </GridColumn>
+                        <GridColumn Title="Akcja" Width="120px">
+                            <Template>
+                                @{
+                                    var item = (Collector)context;
+                                    bool isSelected = AppState.SelectedCollector?.Id == item.Id;
+                                }
+                                <TelerikButton OnClick="@(() => SelectCollector(item))"
+                                               ThemeColor="@(isSelected ? Telerik.Blazor.ThemeConstants.Button.ThemeColor.Success : Telerik.Blazor.ThemeConstants.Button.ThemeColor.Primary)">
+                                    @(isSelected ? "Wybrany" : "Wybierz")
+                                </TelerikButton>
+                            </Template>
+                        </GridColumn>
+                    </GridColumns>
+                </TelerikGrid>
+
+                @if (AppState.SelectedCollector != null)
+                {
+                    <div class="statusbox ok" style="margin-top: 18px;">
+                        Aktualnie wybrany kolektor: <strong>@AppState.SelectedCollector.Name</strong> (SN: @AppState.SelectedCollector.SerialNumber, IP: @AppState.SelectedCollector.IpAddress)
+                    </div>
+                }
+            </div>
         </div>
     }
 </div>
 
 @code {
-    // TODO (dzień 4): w OnInitializedAsync pobierz listę kolektorów z bazy
-    // i zapisz ją w polu, na którym oprzesz TelerikGrid.
-    // Pamiętaj o obsłudze błędu zapytania - baza może być chwilowo niedostępna.
+    private IReadOnlyList<Collector> _allCollectors = new List<Collector>();
+    private List<Collector> _filteredCollectors = new();
+    private IEnumerable<Collector> _selectedItems = Enumerable.Empty<Collector>();
+    private string _searchQuery = string.Empty;
+    private bool _isLoading = false;
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AppState.IsConnected)
+        {
+            await LoadCollectorsAsync();
+        }
+    }
+
+    private async Task LoadCollectorsAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+
+        try
+        {
+            _allCollectors = await SqlData.GetCollectorsAsync();
+            ApplyFilter();
+
+            if (AppState.SelectedCollector != null)
+            {
+                var match = _allCollectors.FirstOrDefault(c => c.Id == AppState.SelectedCollector.Id);
+                if (match != null)
+                {
+                    _selectedItems = new[] { match };
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void OnSearchQueryChanged(string query)
+    {
+        _searchQuery = query;
+        ApplyFilter();
+    }
+
+    private void ApplyFilter()
+    {
+        if (string.IsNullOrWhiteSpace(_searchQuery))
+        {
+            _filteredCollectors = _allCollectors.ToList();
+        }
+        else
+        {
+            var q = _searchQuery.Trim();
+            _filteredCollectors = _allCollectors
+                .Where(c => (c.Name?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                            (c.SerialNumber?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                            (c.IpAddress?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false))
+                .ToList();
+        }
+    }
+
+    private void OnCollectorSelected(IEnumerable<Collector> selected)
+    {
+        _selectedItems = selected;
+        var first = selected.FirstOrDefault();
+        if (first != null)
+        {
+            SelectCollector(first);
+        }
+    }
+
+    private void SelectCollector(Collector collector)
+    {
+        AppState.SelectedCollector = collector;
+        _selectedItems = new[] { collector };
+    }
 }
